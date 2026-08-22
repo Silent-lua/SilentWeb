@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>NOVA CORE — Audio Reactive</title>
+<title>Drama — Roy Woods</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{
@@ -12,1232 +12,476 @@ html,body{
   overscroll-behavior:none;
   user-select:none;-webkit-user-select:none;
   touch-action:none;
-  background:#000;
-  font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  background:#0a0a2e;
+  font-family:Inter,system-ui,-apple-system,sans-serif;
 }
-body{
-  background:radial-gradient(circle at 50% 48%,#0a1520 0%,#040a10 42%,#000000 100%);
-}
-#scene{
+#stage{
   position:fixed;inset:0;
-  width:100%;height:100%;
-  display:block;
-  z-index:1;
-}
-#glowCanvas{
-  position:fixed;inset:0;
-  width:100%;height:100%;
-  display:block;
-  z-index:0;
-  pointer-events:none;
-  filter:blur(22px);
-  opacity:0.6;
-}
-.ui{
-  position:fixed;inset:0;
-  pointer-events:none;
-  z-index:10;
-  color:rgba(255,255,255,0.85);
-  opacity:0;
-  transition:opacity 1.4s ease;
-}
-.ui.visible{opacity:1}
-.brand{
-  position:absolute;
-  top:max(26px,env(safe-area-inset-top));
-  left:50%;
-  transform:translateX(-50%);
-  font-size:12px;
-  font-weight:500;
-  letter-spacing:0.58em;
-  text-transform:uppercase;
-  color:rgba(200,230,255,0.92);
-  animation:reveal 1.5s ease both;
-  animation-delay:0.3s;
-}
-.subtitle{
-  position:absolute;
-  top:calc(max(26px,env(safe-area-inset-top)) + 20px);
-  left:50%;
-  transform:translateX(-50%);
-  font-size:9px;
-  letter-spacing:0.42em;
-  text-transform:uppercase;
-  color:rgba(140,180,220,0.5);
-  animation:reveal 1.5s ease both;
-  animation-delay:0.5s;
-}
-.status{
-  position:absolute;
-  bottom:max(34px,env(safe-area-inset-bottom));
-  left:50%;
-  transform:translateX(-50%);
-  font-size:9px;
-  letter-spacing:0.3em;
-  text-transform:uppercase;
-  color:rgba(100,220,255,0.7);
   display:flex;
   align-items:center;
-  gap:8px;
-  animation:reveal 1.5s ease both;
-  animation-delay:0.7s;
-}
-.status-dot{
-  width:5px;height:5px;
-  border-radius:50%;
-  background:#50dcff;
-  box-shadow:0 0 10px #50dcff;
-  transition:background 0.3s, box-shadow 0.3s;
-}
-.status-dot.playing{
-  background:#7dffb0;
-  box-shadow:0 0 12px #7dffb0;
-  animation:pulseDot 1.6s ease-in-out infinite;
-}
-.hint{
-  position:absolute;
-  bottom:max(56px,calc(env(safe-area-inset-bottom) + 20px));
-  left:50%;
-  transform:translateX(-50%);
-  font-size:10px;
-  letter-spacing:0.28em;
-  text-transform:uppercase;
-  color:rgba(180,210,240,0.4);
-  animation:reveal 1.5s ease both;
-  animation-delay:0.9s;
-  transition:opacity 0.6s;
-}
-.hint.hidden{opacity:0}
-.audio-btn{
-  position:absolute;
-  bottom:max(90px,calc(env(safe-area-inset-bottom) + 55px));
-  left:50%;
-  transform:translateX(-50%);
-  pointer-events:auto;
-  background:rgba(255,255,255,0.06);
-  border:1px solid rgba(120,200,255,0.25);
-  color:rgba(200,230,255,0.85);
-  font-size:10px;
-  letter-spacing:0.32em;
-  text-transform:uppercase;
-  padding:12px 28px;
-  border-radius:40px;
-  cursor:pointer;
-  backdrop-filter:blur(12px);
-  -webkit-backdrop-filter:blur(12px);
-  transition:background 0.3s, border-color 0.3s, transform 0.2s;
-  animation:reveal 1.5s ease both;
-  animation-delay:1.1s;
-}
-.audio-btn:hover{
-  background:rgba(100,200,255,0.12);
-  border-color:rgba(120,220,255,0.45);
-}
-.audio-btn:active{transform:translateX(-50%) scale(0.97)}
-.audio-btn.playing{
-  background:rgba(80,220,180,0.1);
-  border-color:rgba(100,255,200,0.35);
-  color:rgba(180,255,220,0.9);
-}
-.meters{
-  position:absolute;
-  top:50%;
-  right:max(18px,env(safe-area-inset-right));
-  transform:translateY(-50%);
-  display:flex;
-  flex-direction:column;
-  gap:6px;
-  opacity:0.55;
-  animation:reveal 1.5s ease both;
-  animation-delay:1.3s;
-}
-.meter{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  font-size:8px;
-  letter-spacing:0.2em;
-  color:rgba(160,200,240,0.55);
-  text-transform:uppercase;
-}
-.meter-bar{
-  width:48px;height:3px;
-  background:rgba(255,255,255,0.06);
-  border-radius:2px;
+  justify-content:center;
+  background:#05051a;
   overflow:hidden;
 }
-.meter-fill{
-  height:100%;
-  width:0%;
-  border-radius:2px;
-  transition:width 0.05s linear;
+#coverWrap{
+  position:relative;
+  width:min(92vw, 520px);
+  aspect-ratio:1/1;
+  transform-origin:center center;
+  will-change:transform, filter;
 }
-.meter-fill.bass{background:linear-gradient(90deg,#50a0ff,#80e0ff)}
-.meter-fill.mids{background:linear-gradient(90deg,#60c0ff,#a0f0ff)}
-.meter-fill.treble{background:linear-gradient(90deg,#90d0ff,#d0ffff)}
-.meter-fill.energy{background:linear-gradient(90deg,#40e0c0,#a0ffe0)}
-@keyframes reveal{
-  from{opacity:0;transform:translateX(-50%) translateY(14px);filter:blur(10px)}
-  to{opacity:1;transform:translateX(-50%) translateY(0);filter:blur(0)}
+#cover{
+  width:100%;height:100%;
+  object-fit:cover;
+  border-radius:4px;
+  display:block;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.04),
+    0 20px 60px rgba(0,0,0,0.55),
+    0 0 80px rgba(40,60,140,0.25);
 }
-@keyframes pulseDot{
-  0%,100%{opacity:0.6;transform:scale(1)}
-  50%{opacity:1;transform:scale(1.3)}
+#glow{
+  position:absolute;
+  inset:-18%;
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(100,140,255,0.22) 0%, rgba(40,60,160,0.08) 40%, transparent 70%);
+  pointer-events:none;
+  z-index:-1;
+  filter:blur(8px);
+  opacity:0.7;
+}
+#moonPulse{
+  position:absolute;
+  top:11%;
+  right:12%;
+  width:14%;
+  height:14%;
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(255,240,160,0.55) 0%, rgba(255,220,100,0.15) 45%, transparent 70%);
+  pointer-events:none;
+  mix-blend-mode:screen;
+  opacity:0.4;
+}
+#sweep{
+  position:absolute;
+  inset:0;
+  border-radius:4px;
+  background:linear-gradient(
+    115deg,
+    transparent 0%,
+    transparent 40%,
+    rgba(255,255,255,0.04) 48%,
+    rgba(255,255,255,0.09) 50%,
+    rgba(255,255,255,0.04) 52%,
+    transparent 60%,
+    transparent 100%
+  );
+  background-size:200% 200%;
+  pointer-events:none;
+  opacity:0;
+  mix-blend-mode:overlay;
+}
+#fx{
+  position:absolute;
+  inset:0;
+  width:100%;height:100%;
+  border-radius:4px;
+  pointer-events:none;
 }
 .vignette{
   position:fixed;inset:0;
   pointer-events:none;
   z-index:5;
-  background:radial-gradient(ellipse at center,transparent 38%,rgba(0,0,0,0.6) 100%);
+  background:radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.55) 100%);
 }
 .noise{
   position:fixed;inset:0;
   pointer-events:none;
   z-index:6;
-  opacity:0.03;
-  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size:180px 180px;
+  opacity:0.04;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size:160px 160px;
 }
+.ui{
+  position:fixed;inset:0;
+  z-index:20;
+  pointer-events:none;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-end;
+  padding-bottom:max(48px, env(safe-area-inset-bottom));
+}
+.title{
+  font-size:11px;
+  letter-spacing:0.45em;
+  text-transform:uppercase;
+  color:rgba(220,230,255,0.55);
+  margin-bottom:6px;
+  opacity:0;
+  transition:opacity 1s ease;
+}
+.title.show{opacity:1}
+.artist{
+  font-size:10px;
+  letter-spacing:0.3em;
+  text-transform:uppercase;
+  color:rgba(160,180,220,0.4);
+  margin-bottom:28px;
+  opacity:0;
+  transition:opacity 1s ease 0.15s;
+}
+.artist.show{opacity:1}
+.play-btn{
+  pointer-events:auto;
+  background:rgba(255,255,255,0.07);
+  border:1px solid rgba(180,200,255,0.22);
+  color:rgba(220,230,255,0.9);
+  font-size:11px;
+  letter-spacing:0.35em;
+  text-transform:uppercase;
+  padding:14px 36px;
+  border-radius:40px;
+  cursor:pointer;
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  transition:background 0.3s, border-color 0.3s, transform 0.2s, opacity 0.6s;
+}
+.play-btn:hover{
+  background:rgba(120,160,255,0.15);
+  border-color:rgba(180,210,255,0.4);
+}
+.play-btn:active{transform:scale(0.97)}
+.play-btn.hidden{
+  opacity:0;
+  pointer-events:none;
+}
+.hint{
+  margin-top:14px;
+  font-size:9px;
+  letter-spacing:0.25em;
+  text-transform:uppercase;
+  color:rgba(140,160,200,0.35);
+  opacity:0;
+  transition:opacity 0.8s;
+}
+.hint.show{opacity:1}
+.hint.hidden{opacity:0}
 </style>
 </head>
 <body>
-<canvas id="glowCanvas"></canvas>
-<canvas id="scene"></canvas>
+<div id="stage">
+  <div id="coverWrap">
+    <div id="glow"></div>
+    <img id="cover" src="./cover.jpg" alt="Roy Woods — Drama" draggable="false">
+    <div id="moonPulse"></div>
+    <div id="sweep"></div>
+    <canvas id="fx"></canvas>
+  </div>
+</div>
 <div class="vignette"></div>
 <div class="noise"></div>
-<div class="ui" id="ui">
-  <div class="brand">NOVA</div>
-  <div class="subtitle">Silent · Audio Reactive</div>
-  <div class="status"><span class="status-dot" id="statusDot"></span> <span id="statusText">SYSTEM STANDBY</span></div>
-  <div class="hint" id="hint">TAP TO INITIALIZE AUDIO</div>
-  <button class="audio-btn" id="audioBtn">START EXPERIENCE</button>
-  <div class="meters">
-    <div class="meter"><span>BASS</span><div class="meter-bar"><div class="meter-fill bass" id="mBass"></div></div></div>
-    <div class="meter"><span>MIDS</span><div class="meter-bar"><div class="meter-fill mids" id="mMids"></div></div></div>
-    <div class="meter"><span>HIGH</span><div class="meter-bar"><div class="meter-fill treble" id="mTreble"></div></div></div>
-    <div class="meter"><span>NRG</span><div class="meter-bar"><div class="meter-fill energy" id="mEnergy"></div></div></div>
-  </div>
+<div class="ui">
+  <div class="title" id="title">Drama</div>
+  <div class="artist" id="artist">Roy Woods · feat. Drake</div>
+  <button class="play-btn" id="playBtn">PLAY</button>
+  <div class="hint" id="hint">TAP TO START</div>
 </div>
 
 <script>
 (() => {
 "use strict";
 
-/* ═══════════════════════════════════════════
-   CONFIG
-═══════════════════════════════════════════ */
 const CONFIG = {
   AUDIO_FILE: "./drama.mp3",
-  // Fragmento de la canción: empieza en 2:36 y dura 20 segundos en loop
-  AUDIO_START: 156,   // 2 minutos 36 segundos
-  AUDIO_DURATION: 30, // 20 segundos
-  TARGET_FPS: 60,
-  MAX_PARTICLES: 480,
-  CORE_RADIUS: 62,
-  INTERACTION_RADIUS: 140,
-  CONNECTION_DIST: 72
+  COVER_FILE: "./cover.jpg",
+  AUDIO_START: 156,
+  AUDIO_DURATION: 20
 };
 
-const SYSTEM_STATE = {
-  BOOT: "boot",
-  FORMING: "forming",
-  IDLE: "idle",
-  PLAYING: "playing",
-  IMPACT: "impact"
-};
-
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const lerp = (a,b,t) => a + (b-a)*t;
 const TAU = Math.PI * 2;
-const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const lerp = (a, b, t) => a + (b - a) * t;
-const rand = (a = 0, b = 1) => a + Math.random() * (b - a);
-const hypot = Math.hypot;
 
-/* ═══════════════════════════════════════════
-   AUDIO REACTIVE ENGINE
-═══════════════════════════════════════════ */
-class AudioReactiveEngine {
+class AudioEngine {
   constructor() {
     this.audio = null;
-    this.context = null;
+    this.ctx = null;
     this.analyser = null;
-    this.source = null;
-    this.frequencyData = null;
-    this.waveformData = null;
-    this.bass = 0;
-    this.mids = 0;
-    this.treble = 0;
-    this.energy = 0;
-    this.beat = 0;
-    this.smoothBass = 0;
-    this.smoothMids = 0;
-    this.smoothTreble = 0;
-    this.smoothEnergy = 0;
-    this.prevEnergy = 0;
-    this.beatHold = 0;
-    this.initialized = false;
+    this.freq = null;
+    this.wave = null;
+    this.bass = 0; this.mids = 0; this.treble = 0;
+    this.energy = 0; this.beat = 0;
+    this.sBass = 0; this.sMids = 0; this.sTreble = 0; this.sEnergy = 0;
+    this.prevEnergy = 0; this.beatHold = 0;
     this.playing = false;
     this.ready = false;
-    this.error = null;
   }
 
   async init() {
-    if (this.initialized) return true;
+    if (this.ready) return true;
     try {
       this.audio = new Audio(CONFIG.AUDIO_FILE);
-      this.audio.crossOrigin = "anonymous";
-      this.audio.loop = false; // controlamos el loop manualmente del fragmento
       this.audio.preload = "auto";
+      this.audio.loop = false;
 
-      await new Promise((resolve, reject) => {
-        this.audio.addEventListener("canplaythrough", resolve, { once: true });
-        this.audio.addEventListener("error", () => reject(new Error("Audio file not found: drama.mp3")), { once: true });
+      await new Promise((res, rej) => {
+        this.audio.addEventListener("canplaythrough", res, { once: true });
+        this.audio.addEventListener("error", () => rej(new Error("audio missing")), { once: true });
         this.audio.load();
-        setTimeout(() => reject(new Error("Audio load timeout")), 10000);
+        setTimeout(() => rej(new Error("timeout")), 10000);
       });
 
-      // Posicionar al inicio del fragmento (2:36)
       this.audio.currentTime = CONFIG.AUDIO_START;
 
-      // Loop del fragmento de 20 segundos
       this.audio.addEventListener("timeupdate", () => {
         if (!this.playing) return;
-        const end = CONFIG.AUDIO_START + CONFIG.AUDIO_DURATION;
-        if (this.audio.currentTime >= end) {
+        if (this.audio.currentTime >= CONFIG.AUDIO_START + CONFIG.AUDIO_DURATION) {
           this.audio.currentTime = CONFIG.AUDIO_START;
         }
       });
-
-      // Por si llega al final del archivo
       this.audio.addEventListener("ended", () => {
         if (this.playing) {
           this.audio.currentTime = CONFIG.AUDIO_START;
-          this.audio.play().catch(() => {});
+          this.audio.play().catch(()=>{});
         }
       });
 
-      this.context = new (window.AudioContext || window.webkitAudioContext)();
-      this.analyser = this.context.createAnalyser();
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      this.analyser = this.ctx.createAnalyser();
       this.analyser.fftSize = 512;
-      this.analyser.smoothingTimeConstant = 0.72;
-      this.analyser.minDecibels = -75;
+      this.analyser.smoothingTimeConstant = 0.75;
+      this.analyser.minDecibels = -72;
       this.analyser.maxDecibels = -18;
 
-      this.source = this.context.createMediaElementSource(this.audio);
-      this.source.connect(this.analyser);
-      this.analyser.connect(this.context.destination);
+      const src = this.ctx.createMediaElementSource(this.audio);
+      src.connect(this.analyser);
+      this.analyser.connect(this.ctx.destination);
 
-      this.frequencyData = new Uint8Array(this.analyser.frequencyBinCount);
-      this.waveformData = new Uint8Array(this.analyser.fftSize);
-
-      this.initialized = true;
+      this.freq = new Uint8Array(this.analyser.frequencyBinCount);
+      this.wave = new Uint8Array(this.analyser.fftSize);
       this.ready = true;
       return true;
-    } catch (err) {
-      this.error = err.message || "Audio init failed";
-      console.warn("NOVA CORE Audio:", this.error);
-      this.ready = false;
+    } catch (e) {
+      console.warn(e);
       return false;
     }
   }
 
   async play() {
-    if (!this.initialized) {
+    if (!this.ready) {
       const ok = await this.init();
       if (!ok) return false;
     }
-    if (this.context.state === "suspended") {
-      await this.context.resume();
-    }
+    if (this.ctx.state === "suspended") await this.ctx.resume();
+    this.audio.currentTime = CONFIG.AUDIO_START;
     try {
-      // Siempre empezar desde 2:36
-      this.audio.currentTime = CONFIG.AUDIO_START;
       await this.audio.play();
       this.playing = true;
       return true;
-    } catch (e) {
-      this.error = "Playback blocked";
+    } catch {
       return false;
     }
-  }
-
-  pause() {
-    if (this.audio) {
-      this.audio.pause();
-      this.playing = false;
-    }
-  }
-
-  toggle() {
-    if (this.playing) {
-      this.pause();
-      return false;
-    }
-    return this.play();
   }
 
   update() {
-    if (!this.initialized || !this.playing) {
-      this.smoothBass *= 0.96;
-      this.smoothMids *= 0.96;
-      this.smoothTreble *= 0.96;
-      this.smoothEnergy *= 0.96;
-      this.beat *= 0.9;
+    if (!this.ready || !this.playing) {
+      this.sBass *= 0.94; this.sMids *= 0.94;
+      this.sTreble *= 0.94; this.sEnergy *= 0.94;
+      this.beat *= 0.88;
       return;
     }
+    this.analyser.getByteFrequencyData(this.freq);
+    this.analyser.getByteTimeDomainData(this.wave);
 
-    this.analyser.getByteFrequencyData(this.frequencyData);
-    this.analyser.getByteTimeDomainData(this.waveformData);
+    let b=0, m=0, t=0;
+    for (let i=1; i<7; i++) b += this.freq[i];
+    for (let i=7; i<48; i++) m += this.freq[i];
+    for (let i=48; i<160; i++) t += this.freq[i];
 
-    const bins = this.frequencyData.length;
-    // Approximate bands for 512 fft (0-22kHz)
-    // Bass:  ~20-250Hz   → bins 1-6
-    // Mids:  ~250-2kHz   → bins 6-45
-    // Treble:~2k-12kHz   → bins 45-180
+    this.bass = clamp(b / (6*255), 0, 1);
+    this.mids = clamp(m / (41*255), 0, 1);
+    this.treble = clamp(t / (112*255), 0, 1);
 
-    let bassSum = 0, midSum = 0, trebleSum = 0;
-    const bassEnd = 6;
-    const midEnd = 45;
-    const trebleEnd = Math.min(180, bins);
-
-    for (let i = 1; i < bassEnd; i++) bassSum += this.frequencyData[i];
-    for (let i = bassEnd; i < midEnd; i++) midSum += this.frequencyData[i];
-    for (let i = midEnd; i < trebleEnd; i++) trebleSum += this.frequencyData[i];
-
-    this.bass = clamp(bassSum / ((bassEnd - 1) * 255), 0, 1);
-    this.mids = clamp(midSum / ((midEnd - bassEnd) * 255), 0, 1);
-    this.treble = clamp(trebleSum / ((trebleEnd - midEnd) * 255), 0, 1);
-
-    // overall energy from waveform variance + bass weight
-    let waveEnergy = 0;
-    for (let i = 0; i < this.waveformData.length; i++) {
-      const v = (this.waveformData[i] - 128) / 128;
-      waveEnergy += v * v;
+    let we = 0;
+    for (let i=0; i<this.wave.length; i++) {
+      const v = (this.wave[i]-128)/128;
+      we += v*v;
     }
-    waveEnergy = Math.sqrt(waveEnergy / this.waveformData.length);
-    this.energy = clamp(this.bass * 0.55 + this.mids * 0.3 + waveEnergy * 0.35, 0, 1);
+    we = Math.sqrt(we / this.wave.length);
+    this.energy = clamp(this.bass*0.5 + this.mids*0.28 + we*0.4, 0, 1);
 
-    // smoothing
-    this.smoothBass = lerp(this.smoothBass, this.bass, 0.22);
-    this.smoothMids = lerp(this.smoothMids, this.mids, 0.18);
-    this.smoothTreble = lerp(this.smoothTreble, this.treble, 0.25);
-    this.smoothEnergy = lerp(this.smoothEnergy, this.energy, 0.2);
+    this.sBass = lerp(this.sBass, this.bass, 0.2);
+    this.sMids = lerp(this.sMids, this.mids, 0.16);
+    this.sTreble = lerp(this.sTreble, this.treble, 0.22);
+    this.sEnergy = lerp(this.sEnergy, this.energy, 0.18);
 
-    // simple beat detection (energy spike)
-    const delta = this.energy - this.prevEnergy;
-    if (delta > 0.12 && this.energy > 0.38 && this.beatHold <= 0) {
+    const d = this.energy - this.prevEnergy;
+    if (d > 0.11 && this.energy > 0.36 && this.beatHold <= 0) {
       this.beat = 1;
-      this.beatHold = 8; // frames cooldown
+      this.beatHold = 9;
     } else {
-      this.beat *= 0.82;
+      this.beat *= 0.8;
     }
     if (this.beatHold > 0) this.beatHold--;
     this.prevEnergy = this.energy;
   }
 }
 
-/* ═══════════════════════════════════════════
-   PERFORMANCE
-═══════════════════════════════════════════ */
-class PerformanceManager {
-  constructor() {
-    this.quality = 1;
-    this.fps = 60;
-    this.frames = 0;
-    this.lastCheck = 0;
-    this.lowCount = 0;
-  }
-  update(time) {
-    this.frames++;
-    if (time - this.lastCheck > 1000) {
-      this.fps = this.frames;
-      this.frames = 0;
-      this.lastCheck = time;
-      if (this.fps < 46) {
-        this.lowCount++;
-        if (this.lowCount > 2) this.quality = Math.max(0.4, this.quality - 0.12);
-      } else {
-        this.lowCount = 0;
-        if (this.fps > 55) this.quality = Math.min(1, this.quality + 0.04);
-      }
-    }
-  }
-  get particleBudget() { return Math.floor(CONFIG.MAX_PARTICLES * this.quality); }
-  get connectionBudget() { return this.quality > 0.65 ? 1 : this.quality > 0.45 ? 0.5 : 0.25; }
-  get trailEnabled() { return this.quality > 0.5; }
-}
-
-/* ═══════════════════════════════════════════
-   PARTICLES
-═══════════════════════════════════════════ */
-const TYPE = { CORE: 0, ORBIT: 1, FLOAT: 2, ENERGY: 3, DEBRIS: 4 };
-
-class Particle {
-  constructor() { this.reset(); }
-  reset() {
-    this.x = 0; this.y = 0; this.z = 0.5;
-    this.vx = 0; this.vy = 0;
-    this.size = 1; this.alpha = 1;
-    this.phase = 0; this.speed = 0;
-    this.orbit = null; this.orbitAngle = 0; this.orbitRadius = 0;
-    this.baseX = 0; this.baseY = 0;
-    this.life = 1;
-    this.prevX = 0; this.prevY = 0;
-    this.type = TYPE.FLOAT;
-    this.hue = 185;
-    this.trail = false;
-    this.homeForce = 0.012;
-  }
-}
-
-class Orbit {
-  constructor(radius, speed, tilt, thickness = 1) {
-    this.baseRadius = radius;
-    this.radius = radius;
-    this.speed = speed;
-    this.baseSpeed = speed;
-    this.tilt = tilt;
-    this.thickness = thickness;
-    this.rotation = Math.random() * TAU;
-    this.opacity = rand(0.14, 0.32);
-    this.phase = Math.random() * TAU;
-  }
-  update(dt, audio) {
-    const boost = 1 + audio.smoothBass * 1.8 + audio.smoothEnergy * 0.6;
-    this.speed = this.baseSpeed * boost;
-    this.radius = this.baseRadius * (1 + audio.smoothMids * 0.12 + audio.beat * 0.08);
-    this.rotation += this.speed * dt * 0.001;
-  }
-}
-
-class Shockwave {
-  constructor(x, y, strength = 1) {
-    this.x = x; this.y = y;
-    this.radius = 0;
-    this.maxRadius = 320;
-    this.strength = strength;
-    this.speed = 11;
-    this.alive = true;
-  }
-  update(dt) {
-    this.radius += this.speed * dt * 0.065;
-    this.strength *= 0.96;
-    if (this.strength < 0.015 || this.radius > this.maxRadius) this.alive = false;
-  }
-}
-
-/* ═══════════════════════════════════════════
-   CANVAS
-═══════════════════════════════════════════ */
-class CanvasManager {
-  constructor() {
-    this.canvas = document.getElementById("scene");
-    this.ctx = this.canvas.getContext("2d", { alpha: true });
-    this.glowCanvas = document.getElementById("glowCanvas");
-    this.gctx = this.glowCanvas.getContext("2d", { alpha: true });
-    this.dpr = 1;
+class Dust {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext("2d");
+    this.particles = [];
     this.w = 0; this.h = 0;
-    this.cx = 0; this.cy = 0;
     this.resize();
-    window.addEventListener("resize", () => this.resize());
-    window.addEventListener("orientationchange", () => setTimeout(() => this.resize(), 140));
+    for (let i=0; i<55; i++) this.particles.push(this.spawn());
   }
   resize() {
-    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
-    this.w = window.innerWidth;
-    this.h = window.innerHeight;
-    this.cx = this.w * 0.5;
-    this.cy = this.h * 0.48;
-    for (const c of [this.canvas, this.glowCanvas]) {
-      c.width = this.w * this.dpr;
-      c.height = this.h * this.dpr;
-      c.style.width = this.w + "px";
-      c.style.height = this.h + "px";
-    }
-    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    this.gctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    const rect = this.canvas.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio||1, 2);
+    this.w = rect.width || 400;
+    this.h = rect.height || 400;
+    this.canvas.width = this.w * dpr;
+    this.canvas.height = this.h * dpr;
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
-}
-
-/* ═══════════════════════════════════════════
-   CORE
-═══════════════════════════════════════════ */
-class CoreSystem {
-  constructor() {
-    this.energy = 0;
-    this.pulse = 1;
-    this.rotation = 0;
-    this.distortion = 0;
-    this.brightness = 1;
-    this.radius = CONFIG.CORE_RADIUS;
-    this.forming = 0;
-    this.hueShift = 0;
-  }
-  update(dt, time, audio, state) {
-    // audio drives core energy strongly
-    const targetEnergy = audio.smoothEnergy * 0.85 + audio.beat * 0.55;
-    this.energy = lerp(this.energy, targetEnergy, 0.18);
-    this.energy = clamp(this.energy, 0, 1.5);
-
-    this.pulse = 1
-      + Math.sin(time * 0.0016) * 0.022
-      + audio.smoothBass * 0.11
-      + audio.beat * 0.09
-      + this.energy * 0.04;
-
-    this.rotation += (0.00028 + audio.smoothMids * 0.0009 + audio.smoothBass * 0.0005) * dt;
-    this.distortion = lerp(this.distortion, audio.smoothTreble * 0.4 + audio.beat * 0.25, 0.1);
-    this.brightness = 1 + this.energy * 0.7 + audio.beat * 0.35;
-    this.hueShift = audio.smoothTreble * 40 - audio.smoothBass * 15;
-
-    if (state === SYSTEM_STATE.FORMING || state === SYSTEM_STATE.BOOT) {
-      this.forming = Math.min(1, this.forming + dt * 0.0006);
-    } else {
-      this.forming = 1;
-    }
-  }
-  inject(amount) {
-    this.energy = Math.min(1.5, this.energy + amount);
-  }
-}
-
-/* ═══════════════════════════════════════════
-   PARTICLE ENGINE
-═══════════════════════════════════════════ */
-class ParticleEngine {
-  constructor(core, orbits) {
-    this.particles = [];
-    this.core = core;
-    this.orbits = orbits;
-    this.pool = [];
-    for (let i = 0; i < CONFIG.MAX_PARTICLES + 50; i++) this.pool.push(new Particle());
-  }
-  acquire() { return this.pool.pop() || new Particle(); }
-  release(p) { p.reset(); this.pool.push(p); }
-
-  spawnInitial(count) {
-    for (let i = 0; i < count; i++) {
-      const p = this.acquire();
-      const t = Math.random();
-      if (t < 0.2) this.initCore(p);
-      else if (t < 0.46) this.initOrbit(p);
-      else if (t < 0.76) this.initFloat(p);
-      else if (t < 0.9) this.initEnergy(p);
-      else this.initDebris(p);
-      this.particles.push(p);
-    }
-  }
-
-  initCore(p) {
-    p.type = TYPE.CORE;
-    const a = Math.random() * TAU;
-    const r = rand(5, CONFIG.CORE_RADIUS * 0.7);
-    p.baseX = Math.cos(a) * r; p.baseY = Math.sin(a) * r;
-    p.x = p.baseX; p.y = p.baseY;
-    p.z = rand(0.55, 1); p.size = rand(1.3, 3.4);
-    p.alpha = rand(0.5, 0.95); p.phase = Math.random() * TAU;
-    p.speed = rand(0.5, 1.3); p.homeForce = 0.045; p.hue = rand(175, 205);
-  }
-  initOrbit(p) {
-    p.type = TYPE.ORBIT;
-    p.orbit = this.orbits[Math.floor(Math.random() * this.orbits.length)];
-    p.orbitAngle = Math.random() * TAU;
-    p.orbitRadius = p.orbit.baseRadius + rand(-10, 10);
-    p.z = rand(0.3, 0.85); p.size = rand(0.7, 2.2);
-    p.alpha = rand(0.28, 0.75); p.phase = Math.random() * TAU;
-    p.hue = rand(180, 215); p.homeForce = 0.02;
-  }
-  initFloat(p) {
-    p.type = TYPE.FLOAT;
-    const a = Math.random() * TAU;
-    const r = rand(100, Math.min(window.innerWidth, window.innerHeight) * 0.44);
-    p.baseX = Math.cos(a) * r; p.baseY = Math.sin(a) * r * 0.82;
-    p.x = p.baseX; p.y = p.baseY;
-    p.z = rand(0.12, 0.65); p.size = rand(0.45, 1.7);
-    p.alpha = rand(0.12, 0.48); p.phase = Math.random() * TAU;
-    p.speed = rand(0.12, 0.5); p.hue = rand(160, 225); p.homeForce = 0.007;
-  }
-  initEnergy(p) {
-    p.type = TYPE.ENERGY;
-    const a = Math.random() * TAU;
-    const r = rand(30, 200);
-    p.x = Math.cos(a) * r; p.y = Math.sin(a) * r;
-    p.vx = rand(-1.4, 1.4); p.vy = rand(-1.4, 1.4);
-    p.z = rand(0.4, 0.95); p.size = rand(1, 2.6);
-    p.alpha = rand(0.4, 0.9); p.life = rand(0.5, 1.3);
-    p.trail = true; p.hue = rand(185, 235); p.homeForce = 0.003;
-  }
-  initDebris(p) {
-    p.type = TYPE.DEBRIS;
-    const a = Math.random() * TAU;
-    const r = rand(35, 100);
-    p.baseX = Math.cos(a) * r; p.baseY = Math.sin(a) * r;
-    p.x = p.baseX; p.y = p.baseY;
-    p.z = rand(0.25, 0.8); p.size = rand(0.5, 1.5);
-    p.alpha = rand(0.2, 0.55); p.phase = Math.random() * TAU;
-    p.hue = rand(200, 270); p.homeForce = 0.014;
-  }
-
-  emitBurst(count, force, audioBoost = 1) {
-    const n = Math.floor(count * audioBoost);
-    for (let i = 0; i < n; i++) {
-      if (this.particles.length >= CONFIG.MAX_PARTICLES) break;
-      const p = this.acquire();
-      p.type = TYPE.ENERGY;
-      const a = Math.random() * TAU;
-      p.x = Math.cos(a) * rand(4, 28);
-      p.y = Math.sin(a) * rand(4, 28);
-      p.vx = Math.cos(a) * force * rand(0.7, 1.6);
-      p.vy = Math.sin(a) * force * rand(0.7, 1.6);
-      p.z = rand(0.5, 1); p.size = rand(1.1, 3.2);
-      p.alpha = rand(0.55, 0.95); p.life = rand(0.45, 1.15);
-      p.trail = true; p.hue = rand(170, 230);
-      this.particles.push(p);
-    }
-  }
-
-  update(dt, time, pointer, shockwaves, perf, audio) {
-    const budget = perf.particleBudget;
-    while (this.particles.length > budget) {
-      this.release(this.particles.pop());
-    }
-    const form = this.core.forming;
-    const bass = audio.smoothBass;
-    const mids = audio.smoothMids;
-    const treble = audio.smoothTreble;
-    const energy = audio.smoothEnergy;
-    const beat = audio.beat;
-
-    for (let i = this.particles.length - 1; i >= 0; i--) {
-      const p = this.particles[i];
-      p.prevX = p.x; p.prevY = p.y;
-
-      if (p.type === TYPE.CORE) {
-        const a = p.phase + time * 0.00065 * p.speed * (1 + bass * 0.8);
-        const r = hypot(p.baseX, p.baseY) * (0.9 + Math.sin(a * 2.1) * 0.1 + bass * 0.15);
-        const tx = Math.cos(a + this.core.rotation) * r * form;
-        const ty = Math.sin(a + this.core.rotation) * r * form;
-        p.vx += (tx - p.x) * p.homeForce;
-        p.vy += (ty - p.y) * p.homeForce;
-        p.vx *= 0.9; p.vy *= 0.9;
-        p.x += p.vx * dt * 0.065;
-        p.y += p.vy * dt * 0.065;
-        p.size = (1.2 + energy * 1.8 + beat * 1.2) * (0.8 + p.z * 0.4);
-        p.alpha = (0.5 + Math.sin(a) * 0.2 + energy * 0.25) * form;
-        p.hue = 185 + this.core.hueShift * 0.5;
-      } else if (p.type === TYPE.ORBIT && p.orbit) {
-        p.orbitAngle += p.orbit.speed * dt * 0.00115 * (1 + mids * 0.5);
-        const wave = Math.sin(p.orbitAngle * 3 + time * 0.001) * (4 + treble * 8);
-        const rr = (p.orbitRadius * (1 + bass * 0.1) + wave) * form;
-        const tx = Math.cos(p.orbitAngle + p.orbit.rotation) * rr;
-        const ty = Math.sin(p.orbitAngle + p.orbit.rotation) * rr * p.orbit.tilt;
-        p.vx += (tx - p.x) * p.homeForce;
-        p.vy += (ty - p.y) * p.homeForce;
-        p.vx *= 0.88; p.vy *= 0.88;
-        p.x += p.vx * dt * 0.06;
-        p.y += p.vy * dt * 0.06;
-        p.alpha = (0.28 + Math.sin(p.orbitAngle * 2) * 0.15 + energy * 0.2) * form;
-        p.size = 0.8 + treble * 1.5 + beat * 0.8;
-      } else if (p.type === TYPE.FLOAT) {
-        const drift = Math.sin(time * 0.00035 + p.phase) * (10 + energy * 18);
-        const driftY = Math.cos(time * 0.00028 + p.phase * 1.3) * (8 + mids * 14);
-        p.vx += (p.baseX + drift - p.x) * p.homeForce;
-        p.vy += (p.baseY + driftY - p.y) * p.homeForce;
-        // audio push outward on energy
-        const d = hypot(p.x, p.y) || 1;
-        p.vx += (p.x / d) * energy * 0.015;
-        p.vy += (p.y / d) * energy * 0.015;
-        p.vx *= 0.93; p.vy *= 0.93;
-        p.x += p.vx * dt * 0.05;
-        p.y += p.vy * dt * 0.05;
-        p.alpha = (0.15 + Math.sin(time * 0.001 + p.phase) * 0.1 + treble * 0.25) * form;
-      } else if (p.type === TYPE.ENERGY) {
-        p.x += p.vx * dt * 0.075 * (1 + energy * 0.4);
-        p.y += p.vy * dt * 0.075 * (1 + energy * 0.4);
-        p.vx *= 0.982; p.vy *= 0.982;
-        p.life -= dt * 0.0004;
-        p.alpha = clamp(p.life, 0, 1) * (0.7 + energy * 0.3);
-        if (p.life <= 0) {
-          this.particles.splice(i, 1);
-          this.release(p);
-          continue;
-        }
-      } else if (p.type === TYPE.DEBRIS) {
-        const a = p.phase + time * 0.00045 * (1 + mids);
-        const tx = p.baseX + Math.cos(a) * (5 + bass * 10);
-        const ty = p.baseY + Math.sin(a * 1.2) * (5 + bass * 10);
-        p.vx += (tx - p.x) * p.homeForce;
-        p.vy += (ty - p.y) * p.homeForce;
-        p.vx *= 0.92; p.vy *= 0.92;
-        p.x += p.vx * dt * 0.055;
-        p.y += p.vy * dt * 0.055;
-        p.alpha = (0.22 + Math.sin(a) * 0.12 + energy * 0.2) * form;
-      }
-
-      // pointer (secondary)
-      if (pointer.active) {
-        const dx = p.x - (pointer.x - window.innerWidth * 0.5);
-        const dy = p.y - (pointer.y - window.innerHeight * 0.48);
-        const dist = hypot(dx, dy);
-        if (dist > 0 && dist < CONFIG.INTERACTION_RADIUS) {
-          const force = (1 - dist / CONFIG.INTERACTION_RADIUS) * 0.04;
-          p.vx += (dx / dist) * force;
-          p.vy += (dy / dist) * force;
-        }
-      }
-
-      // shockwaves
-      for (const w of shockwaves) {
-        const dx = p.x - (w.x - window.innerWidth * 0.5);
-        const dy = p.y - (w.y - window.innerHeight * 0.48);
-        const dist = hypot(dx, dy);
-        const band = Math.abs(dist - w.radius);
-        if (band < 45 && dist > 1) {
-          const f = w.strength * (1 - band / 45) * 0.85;
-          p.vx += (dx / dist) * f;
-          p.vy += (dy / dist) * f;
-        }
-      }
-    }
-
-    // continuous emission driven by treble + energy
-    if (audio.playing && form > 0.8) {
-      if (treble > 0.35 && Math.random() < treble * 0.08) {
-        this.emitBurst(2, 1.4 + treble * 1.5, 1);
-      }
-      if (beat > 0.7 && Math.random() < 0.6) {
-        this.emitBurst(6 + Math.floor(bass * 8), 2.2 + bass * 1.8, 1);
-      }
-    }
-  }
-}
-
-/* ═══════════════════════════════════════════
-   INTERACTION
-═══════════════════════════════════════════ */
-class InteractionSystem {
-  constructor() {
-    this.pointer = { x: 0, y: 0, active: false, down: false };
-    this.shockwaves = [];
-    this._bind();
-  }
-  _bind() {
-    const onMove = (e) => {
-      const t = e.touches ? e.touches[0] : e;
-      this.pointer.x = t.clientX;
-      this.pointer.y = t.clientY;
-      this.pointer.active = true;
+  spawn() {
+    return {
+      x: Math.random() * this.w,
+      y: Math.random() * this.h,
+      r: 0.4 + Math.random() * 1.4,
+      a: 0.08 + Math.random() * 0.25,
+      vx: (Math.random()-0.5)*0.15,
+      vy: (Math.random()-0.5)*0.12 - 0.05,
+      phase: Math.random() * TAU
     };
-    const onDown = (e) => {
-      // allow button clicks
-      if (e.target && e.target.closest && e.target.closest(".audio-btn")) return;
-      const t = e.touches ? e.touches[0] : e;
-      this.pointer.x = t.clientX;
-      this.pointer.y = t.clientY;
-      this.pointer.down = true;
-      this.pointer.active = true;
-    };
-    const onUp = () => { this.pointer.down = false; };
-    window.addEventListener("pointermove", onMove, { passive: true });
-    window.addEventListener("pointerdown", onDown, { passive: true });
-    window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointerleave", () => { this.pointer.active = false; });
-    window.addEventListener("touchmove", onMove, { passive: true });
-    window.addEventListener("touchstart", onDown, { passive: true });
-    window.addEventListener("touchend", onUp);
   }
-  createShockwave(x, y, strength = 1) {
-    this.shockwaves.push(new Shockwave(x, y, strength));
-  }
-  update(dt) {
-    for (let i = this.shockwaves.length - 1; i >= 0; i--) {
-      this.shockwaves[i].update(dt);
-      if (!this.shockwaves[i].alive) this.shockwaves.splice(i, 1);
+  update(audio, dt) {
+    const boost = 1 + audio.sEnergy * 1.5 + audio.beat * 0.8;
+    for (const p of this.particles) {
+      p.x += p.vx * boost * dt * 0.04;
+      p.y += p.vy * boost * dt * 0.04;
+      p.phase += 0.02;
+      if (p.x < -5) p.x = this.w + 5;
+      if (p.x > this.w + 5) p.x = -5;
+      if (p.y < -5) p.y = this.h + 5;
+      if (p.y > this.h + 5) p.y = -5;
     }
   }
-}
-
-/* ═══════════════════════════════════════════
-   RENDERER
-═══════════════════════════════════════════ */
-class Renderer {
-  constructor(cm, core, orbits, engine, interaction, perf, audio) {
-    this.cm = cm;
-    this.core = core;
-    this.orbits = orbits;
-    this.engine = engine;
-    this.interaction = interaction;
-    this.perf = perf;
-    this.audio = audio;
-  }
-
-  clear() {
-    const { ctx, gctx, w, h } = this.cm;
-    ctx.clearRect(0, 0, w, h);
-    gctx.clearRect(0, 0, w, h);
-  }
-
-  drawBackgroundEnergy() {
-    const { ctx, cx, cy, w, h } = this.cm;
-    const a = this.audio;
-    const r = CONFIG.CORE_RADIUS * this.core.pulse * (2.8 + a.smoothEnergy * 1.2) * this.core.forming;
-    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-    const e = this.core.energy;
-    g.addColorStop(0, `rgba(80,220,255,${0.12 + e * 0.18 + a.beat * 0.1})`);
-    g.addColorStop(0.4, `rgba(60,140,255,${0.04 + e * 0.07})`);
-    g.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, w, h);
-  }
-
-  drawOrbits() {
-    const { ctx, cx, cy } = this.cm;
-    const form = this.core.forming;
-    if (form < 0.12) return;
-    const a = this.audio;
-    ctx.save();
-    ctx.translate(cx, cy);
-    for (const o of this.orbits) {
+  draw(audio) {
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, this.w, this.h);
+    const energy = audio.sEnergy;
+    for (const p of this.particles) {
+      const pulse = 0.6 + Math.sin(p.phase) * 0.4;
+      const alpha = p.a * pulse * (0.5 + energy * 0.9 + audio.beat * 0.4);
       ctx.beginPath();
-      const steps = 72;
-      for (let i = 0; i <= steps; i++) {
-        const ang = (i / steps) * TAU + o.rotation;
-        const wave = Math.sin(ang * 3 + o.phase) * (3.5 + a.smoothTreble * 7);
-        const rr = (o.radius + wave) * form * this.core.pulse;
-        const x = Math.cos(ang) * rr;
-        const y = Math.sin(ang) * rr * o.tilt;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      const op = o.opacity * form * (0.55 + a.smoothEnergy * 0.5 + a.beat * 0.25);
-      ctx.strokeStyle = `rgba(100,200,255,${op})`;
-      ctx.lineWidth = o.thickness * (1 + a.smoothBass * 0.6);
-      ctx.stroke();
-    }
-    ctx.restore();
-  }
-
-  drawCoreGeometry() {
-    const { ctx, cx, cy } = this.cm;
-    const form = this.core.forming;
-    if (form < 0.04) return;
-    const pulse = this.core.pulse;
-    const rot = this.core.rotation;
-    const e = this.core.energy;
-    const a = this.audio;
-    const r = CONFIG.CORE_RADIUS * pulse * form;
-
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.scale(pulse, pulse);
-
-    // outer glow
-    const g1 = ctx.createRadialGradient(0, 0, r * 0.15, 0, 0, r * 1.7);
-    g1.addColorStop(0, `rgba(100,230,255,${0.22 + e * 0.28 + a.beat * 0.15})`);
-    g1.addColorStop(0.45, `rgba(60,160,255,${0.07 + e * 0.08})`);
-    g1.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = g1;
-    ctx.beginPath();
-    ctx.arc(0, 0, r * 1.7, 0, TAU);
-    ctx.fill();
-
-    // geometric layers
-    this.drawPoly(ctx, r * 0.98, 6, rot, `rgba(140,230,255,${0.32 * form + a.beat * 0.15})`, 1.3 + a.smoothBass);
-    this.drawPoly(ctx, r * 0.74, 8, -rot * 1.25, `rgba(100,200,255,${0.26 * form})`, 1 + a.smoothMids * 0.5);
-    this.drawPoly(ctx, r * 0.5, 5, rot * 0.65, `rgba(180,240,255,${0.38 * form + a.smoothTreble * 0.2})`, 1.15);
-
-    // inner core
-    const g2 = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 0.4);
-    g2.addColorStop(0, `rgba(230,250,255,${0.95 * form})`);
-    g2.addColorStop(0.35, `rgba(100,220,255,${0.55 * form + e * 0.2})`);
-    g2.addColorStop(1, "rgba(40,120,220,0)");
-    ctx.fillStyle = g2;
-    ctx.beginPath();
-    ctx.arc(0, 0, r * 0.42 * (1 + a.beat * 0.08), 0, TAU);
-    ctx.fill();
-
-    // cross
-    ctx.strokeStyle = `rgba(180,230,255,${0.12 + e * 0.25 + a.beat * 0.2})`;
-    ctx.lineWidth = 0.9;
-    ctx.beginPath();
-    ctx.moveTo(-r * 0.2, 0); ctx.lineTo(r * 0.2, 0);
-    ctx.moveTo(0, -r * 0.2); ctx.lineTo(0, r * 0.2);
-    ctx.stroke();
-
-    ctx.restore();
-  }
-
-  drawPoly(ctx, radius, sides, rotation, color, lw) {
-    ctx.beginPath();
-    for (let i = 0; i <= sides; i++) {
-      const ang = rotation + (TAU / sides) * i;
-      const wave = Math.sin(ang * 2 + rotation) * 2.5 * this.core.distortion;
-      const x = Math.cos(ang) * (radius + wave);
-      const y = Math.sin(ang) * (radius + wave);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.strokeStyle = color;
-    ctx.lineWidth = lw;
-    ctx.stroke();
-  }
-
-  drawParticles() {
-    const { ctx, gctx, cx, cy } = this.cm;
-    const particles = this.engine.particles;
-    const trail = this.perf.trailEnabled;
-    const form = this.core.forming;
-    const hueBase = this.core.hueShift;
-
-    for (const p of particles) {
-      const persp = 0.42 + p.z * 1.45;
-      const sx = cx + p.x * persp;
-      const sy = cy + p.y * persp;
-      const ss = p.size * persp;
-      const al = clamp(p.alpha * persp * form, 0, 1);
-      if (al < 0.02) continue;
-
-      if (trail && p.trail && p.life > 0.12) {
-        const px = cx + p.prevX * persp;
-        const py = cy + p.prevY * persp;
-        ctx.beginPath();
-        ctx.moveTo(px, py);
-        ctx.lineTo(sx, sy);
-        ctx.strokeStyle = `hsla(${p.hue + hueBase},90%,70%,${al * 0.28})`;
-        ctx.lineWidth = ss * 0.55;
-        ctx.stroke();
-      }
-
-      ctx.beginPath();
-      ctx.arc(sx, sy, ss, 0, TAU);
-      ctx.fillStyle = `hsla(${p.hue + hueBase * 0.5},85%,${55 + p.z * 28}%,${al})`;
+      ctx.arc(p.x, p.y, p.r * (1 + energy * 0.5), 0, TAU);
+      ctx.fillStyle = "rgba(200,220,255," + alpha + ")";
       ctx.fill();
-
-      if (p.type === TYPE.CORE || (p.type === TYPE.ENERGY && p.alpha > 0.45)) {
-        gctx.beginPath();
-        gctx.arc(sx, sy, ss * 1.9, 0, TAU);
-        gctx.fillStyle = `hsla(${p.hue},90%,70%,${al * 0.5})`;
-        gctx.fill();
-      }
     }
-
-    if (this.perf.connectionBudget > 0.2) {
-      this.drawConnections(ctx, cx, cy, this.perf.connectionBudget);
-    }
-  }
-
-  drawConnections(ctx, cx, cy, budget) {
-    const particles = this.engine.particles;
-    const maxCheck = Math.floor(particles.length * budget);
-    const step = Math.max(1, Math.floor(particles.length / maxCheck));
-    const distMax = CONFIG.CONNECTION_DIST * (1 + this.audio.smoothEnergy * 0.25);
-    ctx.lineWidth = 0.65;
-    for (let i = 0; i < particles.length; i += step) {
-      const a = particles[i];
-      if (a.z < 0.25) continue;
-      const perspA = 0.42 + a.z * 1.45;
-      const ax = cx + a.x * perspA;
-      const ay = cy + a.y * perspA;
-      for (let j = i + step; j < Math.min(i + step * 7, particles.length); j += step) {
-        const b = particles[j];
-        const dx = a.x - b.x;
-        const dy = a.y - b.y;
-        const d = Math.sqrt(dx * dx + dy * dy);
-        if (d < distMax && d > 2) {
-          const perspB = 0.42 + b.z * 1.45;
-          const alpha = (1 - d / distMax) * 0.11 * this.core.forming * (0.7 + this.audio.smoothEnergy * 0.5);
-          ctx.beginPath();
-          ctx.moveTo(ax, ay);
-          ctx.lineTo(cx + b.x * perspB, cy + b.y * perspB);
-          ctx.strokeStyle = `rgba(120,210,255,${alpha})`;
-          ctx.stroke();
-        }
-      }
-    }
-  }
-
-  drawShockwaves() {
-    const { ctx } = this.cm;
-    for (const w of this.interaction.shockwaves) {
-      const alpha = w.strength * 0.4;
-      ctx.beginPath();
-      ctx.arc(w.x, w.y, w.radius, 0, TAU);
-      ctx.strokeStyle = `rgba(100,220,255,${alpha})`;
-      ctx.lineWidth = 2.2 * w.strength;
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(w.x, w.y, w.radius * 0.65, 0, TAU);
-      ctx.strokeStyle = `rgba(160,240,255,${alpha * 0.45})`;
-      ctx.lineWidth = 1;
-      ctx.stroke();
-    }
-  }
-
-  drawGlowCore() {
-    const { gctx, cx, cy } = this.cm;
-    const form = this.core.forming;
-    if (form < 0.08) return;
-    const a = this.audio;
-    const r = CONFIG.CORE_RADIUS * this.core.pulse * (1.7 + a.smoothEnergy * 0.5) * form;
-    const e = this.core.energy;
-    const g = gctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-    g.addColorStop(0, `rgba(180,240,255,${0.5 + e * 0.35 + a.beat * 0.2})`);
-    g.addColorStop(0.3, `rgba(80,200,255,${0.22 + e * 0.18})`);
-    g.addColorStop(1, "rgba(0,0,0,0)");
-    gctx.fillStyle = g;
-    gctx.beginPath();
-    gctx.arc(cx, cy, r, 0, TAU);
-    gctx.fill();
-  }
-
-  render() {
-    this.clear();
-    this.drawBackgroundEnergy();
-    this.drawOrbits();
-    this.drawCoreGeometry();
-    this.drawParticles();
-    this.drawShockwaves();
-    this.drawGlowCore();
   }
 }
 
-/* ═══════════════════════════════════════════
-   MAIN
-═══════════════════════════════════════════ */
-class NovaCore {
+class App {
   constructor() {
-    this.cm = new CanvasManager();
-    this.perf = new PerformanceManager();
-    this.audio = new AudioReactiveEngine();
-    this.core = new CoreSystem();
-    this.orbits = this.createOrbits();
-    this.engine = new ParticleEngine(this.core, this.orbits);
-    this.interaction = new InteractionSystem();
-    this.renderer = new Renderer(this.cm, this.core, this.orbits, this.engine, this.interaction, this.perf, this.audio);
-
-    this.state = SYSTEM_STATE.BOOT;
-    this.stateTime = 0;
-    this.lastTime = 0;
-    this.uiShown = false;
-    this.lastBeat = 0;
-
-    this.engine.spawnInitial(70);
-
-    // UI elements
-    this.statusDot = document.getElementById("statusDot");
-    this.statusText = document.getElementById("statusText");
+    this.audio = new AudioEngine();
+    this.coverWrap = document.getElementById("coverWrap");
+    this.glow = document.getElementById("glow");
+    this.moon = document.getElementById("moonPulse");
+    this.sweep = document.getElementById("sweep");
+    this.playBtn = document.getElementById("playBtn");
     this.hint = document.getElementById("hint");
-    this.audioBtn = document.getElementById("audioBtn");
-    this.mBass = document.getElementById("mBass");
-    this.mMids = document.getElementById("mMids");
-    this.mTreble = document.getElementById("mTreble");
-    this.mEnergy = document.getElementById("mEnergy");
+    this.title = document.getElementById("title");
+    this.artist = document.getElementById("artist");
+    this.fx = document.getElementById("fx");
+    this.dust = new Dust(this.fx);
 
-    this.audioBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      this.handleAudioStart();
+    this.rotX = 0; this.rotY = 0;
+    this.targetRotX = 0; this.targetRotY = 0;
+    this.scale = 1;
+    this.sweepPos = 0;
+    this.last = 0;
+
+    this.playBtn.addEventListener("click", () => this.start());
+
+    window.addEventListener("resize", () => this.dust.resize());
+    window.addEventListener("pointermove", (e) => {
+      const nx = (e.clientX / window.innerWidth - 0.5) * 2;
+      const ny = (e.clientY / window.innerHeight - 0.5) * 2;
+      this.targetRotY = nx * 4;
+      this.targetRotX = -ny * 3;
     });
 
-    // also allow tapping the scene after UI is ready
-    window.addEventListener("pointerdown", (e) => {
-      if (e.target.closest && e.target.closest(".audio-btn")) return;
-      if (!this.audio.playing && this.uiShown) {
-        this.handleAudioStart();
-      }
-    });
+    setTimeout(() => {
+      this.title.classList.add("show");
+      this.artist.classList.add("show");
+      this.hint.classList.add("show");
+    }, 400);
 
     requestAnimationFrame((t) => this.loop(t));
   }
 
-  createOrbits() {
-    return [
-      new Orbit(98, 0.32, 0.52, 1.15),
-      new Orbit(128, -0.2, 0.7, 0.95),
-      new Orbit(158, 0.16, 0.4, 0.75),
-      new Orbit(188, -0.11, 0.82, 0.6),
-      new Orbit(218, 0.08, 0.36, 0.5)
-    ];
-  }
-
-  async handleAudioStart() {
-    this.audioBtn.textContent = "LOADING…";
-    this.audioBtn.disabled = true;
+  async start() {
+    this.playBtn.textContent = "…";
+    this.playBtn.disabled = true;
     const ok = await this.audio.play();
     if (ok) {
-      this.audioBtn.textContent = "PAUSE";
-      this.audioBtn.classList.add("playing");
-      this.audioBtn.disabled = false;
-      this.statusDot.classList.add("playing");
-      this.statusText.textContent = "SYSTEM ONLINE · DRAMA";
+      this.playBtn.classList.add("hidden");
+      this.hint.classList.remove("show");
       this.hint.classList.add("hidden");
-      this.state = SYSTEM_STATE.PLAYING;
     } else {
-      this.audioBtn.textContent = "AUDIO NOT FOUND";
-      this.audioBtn.disabled = false;
-      this.statusText.textContent = "PLACE drama.mp3 NEXT TO HTML";
-      // still allow visual experience without audio
-      setTimeout(() => {
-        this.audioBtn.textContent = "RETRY AUDIO";
-      }, 2500);
+      this.playBtn.textContent = "AUDIO ERROR";
+      this.playBtn.disabled = false;
+      setTimeout(() => { this.playBtn.textContent = "RETRY"; }, 2000);
     }
-  }
-
-  update(dt, time) {
-    this.stateTime += dt;
-    this.perf.update(time);
-    this.audio.update();
-
-    // state machine
-    if (this.state === SYSTEM_STATE.BOOT) {
-      if (this.stateTime > 800) {
-        this.state = SYSTEM_STATE.FORMING;
-        this.stateTime = 0;
-        this.engine.spawnInitial(140);
-      }
-    } else if (this.state === SYSTEM_STATE.FORMING) {
-      if (this.stateTime > 1500) {
-        this.state = SYSTEM_STATE.IDLE;
-        if (!this.uiShown) {
-          document.getElementById("ui").classList.add("visible");
-          this.uiShown = true;
-        }
-      }
-      if (this.engine.particles.length < this.perf.particleBudget * 0.8 && Math.random() < 0.12) {
-        this.engine.spawnInitial(5);
-      }
-    }
-
-    // audio → systems
-    this.core.update(dt, time, this.audio, this.state);
-    for (const o of this.orbits) o.update(dt, this.audio);
-    this.interaction.update(dt);
-    this.engine.update(dt, time, this.interaction.pointer, this.interaction.shockwaves, this.perf, this.audio);
-
-    // beat → shockwave + core pulse
-    if (this.audio.beat > 0.85 && time - this.lastBeat > 180) {
-      this.lastBeat = time;
-      this.interaction.createShockwave(this.cm.cx, this.cm.cy, 0.7 + this.audio.smoothBass * 0.6);
-      this.core.inject(0.15 + this.audio.smoothBass * 0.2);
-    }
-
-    // meters
-    this.mBass.style.width = (this.audio.smoothBass * 100) + "%";
-    this.mMids.style.width = (this.audio.smoothMids * 100) + "%";
-    this.mTreble.style.width = (this.audio.smoothTreble * 100) + "%";
-    this.mEnergy.style.width = (this.audio.smoothEnergy * 100) + "%";
   }
 
   loop(time) {
-    const delta = Math.min(time - this.lastTime, 32);
-    this.lastTime = time;
-    this.update(delta, time);
-    this.renderer.render();
+    const dt = Math.min(time - this.last, 32);
+    this.last = time;
+
+    this.audio.update();
+    const a = this.audio;
+
+    const pulse = 1 + a.sBass * 0.035 + a.beat * 0.04 + a.sEnergy * 0.015;
+    this.scale = lerp(this.scale, pulse, 0.18);
+
+    this.rotX = lerp(this.rotX, this.targetRotX + Math.sin(time*0.0004)*1.2, 0.06);
+    this.rotY = lerp(this.rotY, this.targetRotY + Math.cos(time*0.0003)*1.0, 0.06);
+
+    this.coverWrap.style.transform =
+      "perspective(900px) rotateX(" + this.rotX + "deg) rotateY(" + this.rotY + "deg) scale(" + this.scale + ")";
+
+    const glowOp = 0.45 + a.sEnergy * 0.55 + a.beat * 0.35;
+    this.glow.style.opacity = glowOp;
+    this.glow.style.transform = "scale(" + (1 + a.sBass * 0.15 + a.beat * 0.1) + ")";
+
+    this.moon.style.opacity = 0.25 + a.sTreble * 0.45 + a.beat * 0.35;
+    this.moon.style.transform = "scale(" + (1 + a.sTreble * 0.25 + a.beat * 0.2) + ")";
+
+    if (a.beat > 0.7 || a.sEnergy > 0.55) {
+      this.sweep.style.opacity = 0.5 + a.sEnergy * 0.4;
+    } else {
+      const cur = parseFloat(this.sweep.style.opacity || "0") || 0;
+      this.sweep.style.opacity = lerp(cur, 0.08, 0.05);
+    }
+    this.sweepPos = (this.sweepPos + 0.15 + a.sMids * 0.4) % 100;
+    this.sweep.style.backgroundPosition = this.sweepPos + "% 50%";
+
+    const brightness = 1 + a.sEnergy * 0.08 + a.beat * 0.06;
+    const contrast = 1 + a.sBass * 0.05;
+    this.coverWrap.style.filter = "brightness(" + brightness + ") contrast(" + contrast + ")";
+
+    this.dust.update(a, dt);
+    this.dust.draw(a);
+
     requestAnimationFrame((t) => this.loop(t));
   }
 }
 
-window.addEventListener("load", () => {
-  new NovaCore();
-});
+window.addEventListener("load", () => new App());
 })();
 </script>
 </body>
