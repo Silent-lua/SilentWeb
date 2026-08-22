@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>NOVA CORE</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{
+  width:100%;height:100%;
+  overflow:hidden;
+  overscroll-behavior:none;
+  user-select:none;-webkit-user-select:none;
+  touch-action:none;
+  background:#000;
+  font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+}
+body{
+  background:radial-gradient(circle at 50% 48%,#0a1520 0%,#040a10 42%,#000000 100%);
+}
+#scene{
+  position:fixed;inset:0;
+  width:100%;height:100%;
+  display:block;
+  z-index:1;
+}
+#glowCanvas{
+  position:fixed;inset:0;
+  width:100%;height:100%;
+  display:block;
+  z-index:0;
+  pointer-events:none;
+  filter:blur(18px);
+  opacity:0.55;
+}
+.ui{
+  position:fixed;inset:0;
+  pointer-events:none;
+  z-index:10;
+  color:rgba(255,255,255,0.82);
+  opacity:0;
+  transition:opacity 1.2s ease;
+}
+.ui.visible{opacity:1}
+.brand{
+  position:absolute;
+  top:max(28px,env(safe-area-inset-top));
+  left:50%;
+  transform:translateX(-50%);
+  font-size:13px;
+  font-weight:500;
+  letter-spacing:0.55em;
+  text-transform:uppercase;
+  color:rgba(200,230,255,0.9);
+  animation:reveal 1.4s ease both;
+  animation-delay:2.6s;
+}
+.subtitle{
+  position:absolute;
+  top:calc(max(28px,env(safe-area-inset-top)) + 22px);
+  left:50%;
+  transform:translateX(-50%);
+  font-size:10px;
+  font-weight:400;
+  letter-spacing:0.38em;
+  text-transform:uppercase;
+  color:rgba(140,180,220,0.55);
+  animation:reveal 1.4s ease both;
+  animation-delay:2.85s;
+}
+.status{
+  position:absolute;
+  bottom:max(36px,env(safe-area-inset-bottom));
+  left:50%;
+  transform:translateX(-50%);
+  font-size:9px;
+  letter-spacing:0.28em;
+  text-transform:uppercase;
+  color:rgba(100,220,255,0.7);
+  display:flex;
+  align-items:center;
+  gap:8px;
+  animation:reveal 1.4s ease both;
+  animation-delay:3.1s;
+}
+.status-dot{
+  width:5px;height:5px;
+  border-radius:50%;
+  background:#50dcff;
+  box-shadow:0 0 8px #50dcff;
+  animation:pulseDot 2.4s ease-in-out infinite;
+}
+.hint{
+  position:absolute;
+  bottom:max(58px,calc(env(safe-area-inset-bottom) + 22px));
+  left:50%;
+  transform:translateX(-50%);
+  font-size:10px;
+  letter-spacing:0.32em;
+  text-transform:uppercase;
+  color:rgba(180,210,240,0.35);
+  animation:reveal 1.4s ease both;
+  animation-delay:3.35s;
+}
+@keyframes reveal{
+  from{opacity:0;transform:translateX(-50%) translateY(14px);filter:blur(10px)}
+  to{opacity:1;transform:translateX(-50%) translateY(0);filter:blur(0)}
+}
+@keyframes pulseDot{
+  0%,100%{opacity:0.55;transform:scale(1)}
+  50%{opacity:1;transform:scale(1.25)}
+}
+.vignette{
+  position:fixed;inset:0;
+  pointer-events:none;
+  z-index:5;
+  background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,0.55) 100%);
+}
+.noise{
+  position:fixed;inset:0;
+  pointer-events:none;
+  z-index:6;
+  opacity:0.035;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size:180px 180px;
+}
+</style>
+</head>
+<body>
+<canvas id="glowCanvas"></canvas>
+<canvas id="scene"></canvas>
+<div class="vignette"></div>
+<div class="noise"></div>
+<div class="ui" id="ui">
+  <div class="brand">NOVA</div>
+  <div class="subtitle">Silent</div>
+  <div class="status"><span class="status-dot"></span> SYSTEM ONLINE</div>
+  <div class="hint">TOUCH TO INTERACT</div>
+</div>
+
+<script>
+(() => {
+"use strict";
+
+const CONFIG = {
+  AUDIO_ENABLED: false,
+  TARGET_FPS: 60,
+  MAX_PARTICLES: 420,
+  CORE_RADIUS: 58,
+  INTERACTION_RADIUS: 160,
+  CONNECTION_DIST: 78,
+  BOOT_DURATION: 3200
+};
+
+const SYSTEM_STATE = {
+  BOOT: "boot",
+  FORMING: "forming",
+  IDLE: "idle",
+  INTERACTING: "interacting",
+  IMPACT: "impact",
+  RECOVERY: "recovery"
+};
+
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const rand = (a = 0, b = 1) => a + Math.random() * (b - a);
+const hypot = Math.hypot;
+
+class PerformanceManager {
+  constructor() {
+    this.quality = 1;
+    this.fps = 60;
+    this.frames = 0;
+    this.lastCheck = 0;
+    this.lowCount = 0;
+  }
+  update(time) {
+    this.frames++;
+    if (time - this.lastCheck > 1000) {
+      this.fps = this.frames;
+      this.frames = 0;
+      this.lastCheck = time;
+      if (this.fps < 48) {
+        this.lowCount++;
+        if (this.lowCount > 2) this.downgrade();
+      } else {
+        this.lowCount = 0;
+        if (this.fps > 56) this.upgrade();
+      }
+    }
+  }
+  downgrade() {
+    this.quality = Math.max(0.45, this.quality - 0.12);
+  }
+  upgrade() {
+    this.quality = Math.min(1, this.quality + 0.04);
+  }
+  get particleBudget() {
+    return Math.floor(CONFIG.MAX_PARTICLES * this.quality);
+  }
+  get connectionBudget() {
+    return this.quality > 0.7 ? 1 : this.quality > 0.5 ? 0.55 : 0.3;
+  }
+  get trailEnabled() {
+    return this.quality > 0.55;
+  }
+}
+
+const TYPE = {
+  CORE: 0,
+  ORBIT: 1,
+  FLOAT: 2,
+  ENERGY: 3,
+  DEBRIS: 4
+};
+
+class Particle {
+  constructor() {
+    this.reset();
+  }
+  reset() {
+    this.x = 0; this.y = 0; this.z = 0.5;
+    this.vx = 0; this.vy = 0; this.vz = 0;
+    this.size = 1; this.alpha = 1;
+    this.phase = 0; this.speed = 0;
+    this.orbit = null; this.orbitAngle = 0; this.orbitRadius = 0;
+    this.baseX = 0; this.baseY = 0;
+    this.energy = 0; this.life = 1;
+    this.prevX = 0; this.prevY = 0;
+    this.type = TYPE.FLOAT;
+    this.hue = 185;
+    this.trail = false;
+    this.homeForce = 0.012;
+  }
+}
+
+class Orbit {
+  constructor(radius, speed, tilt, thickness = 1) {
+    this.radius = radius;
+    this.speed = speed;
+    this.tilt = tilt;
+    this.thickness = thickness;
+    this.rotation = Math.random() * TAU;
+    this.opacity = rand(0.12, 0.28);
+    this.phase = Math.random() * TAU;
+  }
+  update(dt) {
+    this.rotation += this.speed * dt * 0.001;
+  }
+}
+
+class Shockwave {
+  constructor(x, y) {
+    this.x = x; this.y = y;
+    this.radius = 0;
+    this.maxRadius = 280;
+    this.strength = 1;
+    this.speed = 9;
+    this.alive = true;
+  }
+  update(dt) {
+    this.radius += this.speed * dt * 0.06;
+    this.strength *= 0.965;
+    if (this.strength < 0.012 || this.radius > this.maxRadius) this.alive = false;
+  }
+}
+
+class CanvasManager {
+  constructor() {
+    this.canvas = document.getElementById("scene");
+    this.ctx = this.canvas.getContext("2d", { alpha: true });
+    this.glowCanvas = document.getElementById("glowCanvas");
+    this.gctx = this.glowCanvas.getContext("2d", { alpha: true });
+    this.dpr = 1;
+    this.w = 0; this.h = 0;
+    this.cx = 0; this.cy = 0;
+    this.resize();
+    window.addEventListener("resize", () => this.resize());
+    window.addEventListener("orientationchange", () => setTimeout(() => this.resize(), 120));
+  }
+  resize() {
+    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    this.w = window.innerWidth;
+    this.h = window.innerHeight;
+    this.cx = this.w * 0.5;
+    this.cy = this.h * 0.48;
+    for (const c of [this.canvas, this.glowCanvas]) {
+      c.width = this.w * this.dpr;
+      c.height = this.h * this.dpr;
+      c.style.width = this.w + "px";
+      c.style.height = this.h + "px";
+    }
+    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    this.gctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+  }
+}
+
+class CoreSystem {
+  constructor() {
+    this.energy = 0;
+    this.pulse = 1;
+    this.rotation = 0;
+    this.distortion = 0;
+    this.brightness = 1;
+    this.radius = CONFIG.CORE_RADIUS;
+    this.forming = 0;
+  }
+  update(dt, time, state) {
+    this.energy *= 0.965;
+    this.energy = clamp(this.energy, 0, 1.4);
+    this.pulse = 1 + Math.sin(time * 0.0018) * 0.028 + this.energy * 0.06;
+    this.rotation += 0.00035 * dt + this.energy * 0.0008;
+    this.distortion = lerp(this.distortion, this.energy * 0.35, 0.04);
+    this.brightness = 1 + this.energy * 0.55;
+    if (state === SYSTEM_STATE.FORMING || state === SYSTEM_STATE.BOOT) {
+      this.forming = Math.min(1, this.forming + dt * 0.00055);
+    } else {
+      this.forming = 1;
+    }
+  }
+  inject(amount) {
+    this.energy = Math.min(1.4, this.energy + amount);
+  }
+}
+
+class ParticleEngine {
+  constructor(core, orbits) {
+    this.particles = [];
+    this.core = core;
+    this.orbits = orbits;
+    this.pool = [];
+    for (let i = 0; i < CONFIG.MAX_PARTICLES + 40; i++) {
+      this.pool.push(new Particle());
+    }
+  }
+  acquire() {
+    return this.pool.pop() || new Particle();
+  }
+  release(p) {
+    p.reset();
+    this.pool.push(p);
+  }
+  spawnInitial(count) {
+    for (let i = 0; i < count; i++) {
+      const p = this.acquire();
+      const t = Math.random();
+      if (t < 0.22) this.initCore(p);
+      else if (t < 0.48) this.initOrbit(p);
+      else if (t < 0.78) this.initFloat(p);
+      else if (t < 0.92) this.initEnergy(p);
+      else this.initDebris(p);
+      this.particles.push(p);
+    }
+  }
+  initCore(p) {
+    p.type = TYPE.CORE;
+    const a = Math.random() * TAU;
+    const r = rand(4, CONFIG.CORE_RADIUS * 0.72);
+    p.baseX = Math.cos(a) * r;
+    p.baseY = Math.sin(a) * r;
+    p.x = p.baseX; p.y = p.baseY;
+    p.z = rand(0.55, 1);
+    p.size = rand(1.2, 3.2);
+    p.alpha = rand(0.45, 0.95);
+    p.phase = Math.random() * TAU;
+    p.speed = rand(0.4, 1.2);
+    p.homeForce = 0.04;
+    p.hue = rand(175, 200);
+  }
+  initOrbit(p) {
+    p.type = TYPE.ORBIT;
+    const oi = Math.floor(Math.random() * this.orbits.length);
+    p.orbit = this.orbits[oi];
+    p.orbitAngle = Math.random() * TAU;
+    p.orbitRadius = p.orbit.radius + rand(-8, 8);
+    p.z = rand(0.35, 0.85);
+    p.size = rand(0.8, 2.1);
+    p.alpha = rand(0.3, 0.75);
+    p.phase = Math.random() * TAU;
+    p.hue = rand(180, 210);
+    p.homeForce = 0.018;
+  }
+  initFloat(p) {
+    p.type = TYPE.FLOAT;
+    const a = Math.random() * TAU;
+    const r = rand(90, Math.min(window.innerWidth, window.innerHeight) * 0.42);
+    p.baseX = Math.cos(a) * r;
+    p.baseY = Math.sin(a) * r * 0.85;
+    p.x = p.baseX; p.y = p.baseY;
+    p.z = rand(0.15, 0.7);
+    p.size = rand(0.5, 1.8);
+    p.alpha = rand(0.15, 0.5);
+    p.phase = Math.random() * TAU;
+    p.speed = rand(0.15, 0.55);
+    p.hue = rand(160, 220);
+    p.homeForce = 0.008;
+  }
+  initEnergy(p) {
+    p.type = TYPE.ENERGY;
+    const a = Math.random() * TAU;
+    const r = rand(40, 220);
+    p.x = Math.cos(a) * r;
+    p.y = Math.sin(a) * r;
+    p.vx = rand(-1.2, 1.2);
+    p.vy = rand(-1.2, 1.2);
+    p.z = rand(0.4, 0.95);
+    p.size = rand(1, 2.4);
+    p.alpha = rand(0.4, 0.85);
+    p.life = rand(0.6, 1.4);
+    p.trail = true;
+    p.hue = rand(185, 230);
+    p.homeForce = 0.004;
+  }
+  initDebris(p) {
+    p.type = TYPE.DEBRIS;
+    const a = Math.random() * TAU;
+    const r = rand(30, 90);
+    p.baseX = Math.cos(a) * r;
+    p.baseY = Math.sin(a) * r;
+    p.x = p.baseX; p.y = p.baseY;
+    p.z = rand(0.3, 0.8);
+    p.size = rand(0.6, 1.6);
+    p.alpha = rand(0.25, 0.6);
+    p.phase = Math.random() * TAU;
+    p.hue = rand(200, 260);
+    p.homeForce = 0.015;
+  }
+  emitBurst(cx, cy, count, force) {
+    for (let i = 0; i < count; i++) {
+      if (this.particles.length >= CONFIG.MAX_PARTICLES) break;
+      const p = this.acquire();
+      p.type = TYPE.ENERGY;
+      const a = Math.random() * TAU;
+      p.x = cx + Math.cos(a) * rand(5, 25);
+      p.y = cy + Math.sin(a) * rand(5, 25);
+      p.vx = Math.cos(a) * force * rand(0.6, 1.4);
+      p.vy = Math.sin(a) * force * rand(0.6, 1.4);
+      p.z = rand(0.5, 1);
+      p.size = rand(1.2, 3);
+      p.alpha = rand(0.5, 0.95);
+      p.life = rand(0.5, 1.1);
+      p.trail = true;
+      p.hue = rand(175, 220);
+      this.particles.push(p);
+    }
+  }
+  update(dt, time, pointer, shockwaves, perf, state) {
+    const budget = perf.particleBudget;
+    while (this.particles.length > budget) {
+      const p = this.particles.pop();
+      this.release(p);
+    }
+    const coreR = CONFIG.CORE_RADIUS * this.core.pulse;
+    const form = this.core.forming;
+
+    for (let i = this.particles.length - 1; i >= 0; i--) {
+      const p = this.particles[i];
+      p.prevX = p.x;
+      p.prevY = p.y;
+
+      // type-specific motion
+      if (p.type === TYPE.CORE) {
+        const a = p.phase + time * 0.0007 * p.speed;
+        const r = hypot(p.baseX, p.baseY) * (0.92 + Math.sin(a * 2.3) * 0.08);
+        const targetX = Math.cos(a + this.core.rotation) * r * form;
+        const targetY = Math.sin(a + this.core.rotation) * r * form;
+        p.vx += (targetX - p.x) * p.homeForce;
+        p.vy += (targetY - p.y) * p.homeForce;
+        p.vx *= 0.92; p.vy *= 0.92;
+        p.x += p.vx * dt * 0.06;
+        p.y += p.vy * dt * 0.06;
+        p.alpha = (0.45 + Math.sin(a) * 0.2) * form * (0.7 + this.core.energy * 0.3);
+      } else if (p.type === TYPE.ORBIT && p.orbit) {
+        p.orbitAngle += p.orbit.speed * dt * 0.0012;
+        const wave = Math.sin(p.orbitAngle * 3 + time * 0.001) * 5;
+        const rr = (p.orbitRadius + wave) * form;
+        const tx = Math.cos(p.orbitAngle + p.orbit.rotation) * rr;
+        const ty = Math.sin(p.orbitAngle + p.orbit.rotation) * rr * p.orbit.tilt;
+        p.vx += (tx - p.x) * p.homeForce;
+        p.vy += (ty - p.y) * p.homeForce;
+        p.vx *= 0.9; p.vy *= 0.9;
+        p.x += p.vx * dt * 0.06;
+        p.y += p.vy * dt * 0.06;
+        p.alpha = (0.3 + Math.sin(p.orbitAngle * 2) * 0.15) * form;
+      } else if (p.type === TYPE.FLOAT) {
+        const drift = Math.sin(time * 0.0004 + p.phase) * 12;
+        const driftY = Math.cos(time * 0.0003 + p.phase * 1.3) * 10;
+        p.vx += (p.baseX + drift - p.x) * p.homeForce;
+        p.vy += (p.baseY + driftY - p.y) * p.homeForce;
+        p.vx *= 0.94; p.vy *= 0.94;
+        p.x += p.vx * dt * 0.05;
+        p.y += p.vy * dt * 0.05;
+        p.alpha = (0.18 + Math.sin(time * 0.001 + p.phase) * 0.1) * form;
+      } else if (p.type === TYPE.ENERGY) {
+        p.x += p.vx * dt * 0.07;
+        p.y += p.vy * dt * 0.07;
+        p.vx *= 0.985; p.vy *= 0.985;
+        p.life -= dt * 0.00035;
+        p.alpha = clamp(p.life, 0, 1) * 0.8;
+        if (p.life <= 0) {
+          this.particles.splice(i, 1);
+          this.release(p);
+          continue;
+        }
+      } else if (p.type === TYPE.DEBRIS) {
+        const a = p.phase + time * 0.0005;
+        const tx = p.baseX + Math.cos(a) * 6;
+        const ty = p.baseY + Math.sin(a * 1.2) * 6;
+        p.vx += (tx - p.x) * p.homeForce;
+        p.vy += (ty - p.y) * p.homeForce;
+        p.vx *= 0.93; p.vy *= 0.93;
+        p.x += p.vx * dt * 0.055;
+        p.y += p.vy * dt * 0.055;
+        p.alpha = (0.25 + Math.sin(a) * 0.12) * form;
+      }
+
+      // pointer influence
+      if (pointer.active) {
+        const dx = p.x - (pointer.x - window.innerWidth * 0.5);
+        const dy = p.y - (pointer.y - window.innerHeight * 0.48);
+        const dist = hypot(dx, dy);
+        if (dist > 0 && dist < CONFIG.INTERACTION_RADIUS) {
+          const force = (1 - dist / CONFIG.INTERACTION_RADIUS) * 0.055;
+          p.vx += (dx / dist) * force;
+          p.vy += (dy / dist) * force;
+        }
+      }
+
+      // shockwaves
+      for (const w of shockwaves) {
+        const dx = p.x - (w.x - window.innerWidth * 0.5);
+        const dy = p.y - (w.y - window.innerHeight * 0.48);
+        const dist = hypot(dx, dy);
+        const band = Math.abs(dist - w.radius);
+        if (band < 40 && dist > 1) {
+          const f = w.strength * (1 - band / 40) * 0.9;
+          p.vx += (dx / dist) * f;
+          p.vy += (dy / dist) * f;
+        }
+      }
+
+      // soft pull toward core when far
+      const dCore = hypot(p.x, p.y);
+      if (dCore > coreR * 3.5 && p.type !== TYPE.ENERGY) {
+        p.vx -= (p.x / dCore) * 0.008;
+        p.vy -= (p.y / dCore) * 0.008;
+      }
+    }
+
+    // occasional idle emission
+    if (state === SYSTEM_STATE.IDLE && Math.random() < 0.012 * form) {
+      if (this.particles.length < budget - 5) {
+        const p = this.acquire();
+        this.initDebris(p);
+        this.particles.push(p);
+      }
+    }
+  }
+}
+
+class InteractionSystem {
+  constructor() {
+    this.pointer = { x: 0, y: 0, active: false, down: false };
+    this.shockwaves = [];
+    this._bind();
+  }
+  _bind() {
+    const onMove = (e) => {
+      const t = e.touches ? e.touches[0] : e;
+      this.pointer.x = t.clientX;
+      this.pointer.y = t.clientY;
+      this.pointer.active = true;
+    };
+    const onDown = (e) => {
+      e.preventDefault();
+      const t = e.touches ? e.touches[0] : e;
+      this.pointer.x = t.clientX;
+      this.pointer.y = t.clientY;
+      this.pointer.down = true;
+      this.pointer.active = true;
+      this.createShockwave(t.clientX, t.clientY);
+    };
+    const onUp = () => {
+      this.pointer.down = false;
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    window.addEventListener("pointerdown", onDown, { passive: false });
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointerleave", () => { this.pointer.active = false; });
+    window.addEventListener("touchmove", onMove, { passive: true });
+    window.addEventListener("touchstart", onDown, { passive: false });
+    window.addEventListener("touchend", onUp);
+  }
+  createShockwave(x, y) {
+    this.shockwaves.push(new Shockwave(x, y));
+  }
+  update(dt) {
+    for (let i = this.shockwaves.length - 1; i >= 0; i--) {
+      this.shockwaves[i].update(dt);
+      if (!this.shockwaves[i].alive) this.shockwaves.splice(i, 1);
+    }
+  }
+}
+
+class Renderer {
+  constructor(cm, core, orbits, engine, interaction, perf) {
+    this.cm = cm;
+    this.core = core;
+    this.orbits = orbits;
+    this.engine = engine;
+    this.interaction = interaction;
+    this.perf = perf;
+  }
+
+  clear() {
+    const { ctx, gctx, w, h } = this.cm;
+    ctx.clearRect(0, 0, w, h);
+    gctx.clearRect(0, 0, w, h);
+  }
+
+  drawBackgroundEnergy() {
+    const { ctx, cx, cy, w, h } = this.cm;
+    const r = CONFIG.CORE_RADIUS * this.core.pulse * 3.2 * this.core.forming;
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    const e = this.core.energy;
+    g.addColorStop(0, `rgba(80,220,255,${0.14 + e * 0.12})`);
+    g.addColorStop(0.45, `rgba(60,140,255,${0.05 + e * 0.04})`);
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  drawOrbits() {
+    const { ctx, cx, cy } = this.cm;
+    const form = this.core.forming;
+    if (form < 0.15) return;
+    ctx.save();
+    ctx.translate(cx, cy);
+    for (const o of this.orbits) {
+      ctx.beginPath();
+      const steps = 64;
+      for (let i = 0; i <= steps; i++) {
+        const a = (i / steps) * TAU + o.rotation;
+        const wave = Math.sin(a * 3 + o.phase) * 4;
+        const rr = (o.radius + wave) * form * this.core.pulse;
+        const x = Math.cos(a) * rr;
+        const y = Math.sin(a) * rr * o.tilt;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = `rgba(100,200,255,${o.opacity * form * (0.6 + this.core.energy * 0.4)})`;
+      ctx.lineWidth = o.thickness;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  drawCoreGeometry() {
+    const { ctx, cx, cy } = this.cm;
+    const form = this.core.forming;
+    if (form < 0.05) return;
+    const pulse = this.core.pulse;
+    const rot = this.core.rotation;
+    const e = this.core.energy;
+    const r = CONFIG.CORE_RADIUS * pulse * form;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(pulse, pulse);
+
+    // outer soft glow ring
+    const g1 = ctx.createRadialGradient(0, 0, r * 0.2, 0, 0, r * 1.6);
+    g1.addColorStop(0, `rgba(100,230,255,${0.25 + e * 0.2})`);
+    g1.addColorStop(0.5, `rgba(60,160,255,${0.08 + e * 0.06})`);
+    g1.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = g1;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.6, 0, TAU);
+    ctx.fill();
+
+    // geometric polygons
+    this.drawPoly(ctx, r * 0.95, 6, rot, `rgba(140,230,255,${0.35 * form})`, 1.2);
+    this.drawPoly(ctx, r * 0.72, 8, -rot * 1.3, `rgba(100,200,255,${0.28 * form})`, 1);
+    this.drawPoly(ctx, r * 0.48, 5, rot * 0.7, `rgba(180,240,255,${0.4 * form})`, 1.1);
+
+    // inner bright core
+    const g2 = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 0.38);
+    g2.addColorStop(0, `rgba(220,250,255,${0.95 * form})`);
+    g2.addColorStop(0.4, `rgba(100,220,255,${0.55 * form})`);
+    g2.addColorStop(1, `rgba(40,120,220,${0.0})`);
+    ctx.fillStyle = g2;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.4, 0, TAU);
+    ctx.fill();
+
+    // cross hair subtle
+    ctx.strokeStyle = `rgba(180,230,255,${0.15 + e * 0.2})`;
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.22, 0); ctx.lineTo(r * 0.22, 0);
+    ctx.moveTo(0, -r * 0.22); ctx.lineTo(0, r * 0.22);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  drawPoly(ctx, radius, sides, rotation, color, lw) {
+    ctx.beginPath();
+    for (let i = 0; i <= sides; i++) {
+      const a = rotation + (TAU / sides) * i;
+      const wave = Math.sin(a * 2 + rotation) * 2 * this.core.distortion;
+      const x = Math.cos(a) * (radius + wave);
+      const y = Math.sin(a) * (radius + wave);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lw;
+    ctx.stroke();
+  }
+
+  drawParticles() {
+    const { ctx, gctx, cx, cy } = this.cm;
+    const particles = this.engine.particles;
+    const trail = this.perf.trailEnabled;
+    const connBudget = this.perf.connectionBudget;
+
+    // sort by z for approximate depth (cheap)
+    // only every few frames conceptually – we skip full sort for perf
+    for (const p of particles) {
+      const persp = 0.45 + p.z * 1.4;
+      const sx = cx + p.x * persp;
+      const sy = cy + p.y * persp;
+      const ss = p.size * persp;
+      const al = clamp(p.alpha * persp * this.core.forming, 0, 1);
+
+      if (al < 0.02) continue;
+
+      // trail
+      if (trail && p.trail && p.life > 0.15) {
+        const px = cx + p.prevX * persp;
+        const py = cy + p.prevY * persp;
+        ctx.beginPath();
+        ctx.moveTo(px, py);
+        ctx.lineTo(sx, sy);
+        ctx.strokeStyle = `hsla(${p.hue},90%,70%,${al * 0.25})`;
+        ctx.lineWidth = ss * 0.6;
+        ctx.stroke();
+      }
+
+      // main particle
+      ctx.beginPath();
+      ctx.arc(sx, sy, ss, 0, TAU);
+      ctx.fillStyle = `hsla(${p.hue},85%,${55 + p.z * 25}%,${al})`;
+      ctx.fill();
+
+      // bright core particles go to glow canvas
+      if (p.type === TYPE.CORE || (p.type === TYPE.ENERGY && p.alpha > 0.5)) {
+        gctx.beginPath();
+        gctx.arc(sx, sy, ss * 1.8, 0, TAU);
+        gctx.fillStyle = `hsla(${p.hue},90%,70%,${al * 0.45})`;
+        gctx.fill();
+      }
+    }
+
+    // connections (spatial sampling)
+    if (connBudget > 0.2) {
+      this.drawConnections(ctx, cx, cy, connBudget);
+    }
+  }
+
+  drawConnections(ctx, cx, cy, budget) {
+    const particles = this.engine.particles;
+    const maxCheck = Math.floor(particles.length * budget);
+    const step = Math.max(1, Math.floor(particles.length / maxCheck));
+    const distMax = CONFIG.CONNECTION_DIST;
+
+    ctx.lineWidth = 0.7;
+    for (let i = 0; i < particles.length; i += step) {
+      const a = particles[i];
+      if (a.type === TYPE.FLOAT && a.z < 0.3) continue;
+      const perspA = 0.45 + a.z * 1.4;
+      const ax = cx + a.x * perspA;
+      const ay = cy + a.y * perspA;
+
+      for (let j = i + step; j < Math.min(i + step * 8, particles.length); j += step) {
+        const b = particles[j];
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d < distMax && d > 2) {
+          const perspB = 0.45 + b.z * 1.4;
+          const bx = cx + b.x * perspB;
+          const by = cy + b.y * perspB;
+          const alpha = (1 - d / distMax) * 0.12 * this.core.forming;
+          ctx.beginPath();
+          ctx.moveTo(ax, ay);
+          ctx.lineTo(bx, by);
+          ctx.strokeStyle = `rgba(120,210,255,${alpha})`;
+          ctx.stroke();
+        }
+      }
+    }
+  }
+
+  drawShockwaves() {
+    const { ctx, cx, cy } = this.cm;
+    for (const w of this.interaction.shockwaves) {
+      const alpha = w.strength * 0.35;
+      ctx.beginPath();
+      ctx.arc(w.x, w.y, w.radius, 0, TAU);
+      ctx.strokeStyle = `rgba(100,220,255,${alpha})`;
+      ctx.lineWidth = 2 * w.strength;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(w.x, w.y, w.radius * 0.7, 0, TAU);
+      ctx.strokeStyle = `rgba(160,240,255,${alpha * 0.5})`;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+  }
+
+  drawGlowCore() {
+    const { gctx, cx, cy } = this.cm;
+    const form = this.core.forming;
+    if (form < 0.1) return;
+    const r = CONFIG.CORE_RADIUS * this.core.pulse * 1.8 * form;
+    const e = this.core.energy;
+    const g = gctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, `rgba(180,240,255,${0.55 + e * 0.3})`);
+    g.addColorStop(0.35, `rgba(80,200,255,${0.25 + e * 0.15})`);
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    gctx.fillStyle = g;
+    gctx.beginPath();
+    gctx.arc(cx, cy, r, 0, TAU);
+    gctx.fill();
+  }
+
+  render(time) {
+    this.clear();
+    this.drawBackgroundEnergy();
+    this.drawOrbits();
+    this.drawCoreGeometry();
+    this.drawParticles();
+    this.drawShockwaves();
+    this.drawGlowCore();
+  }
+}
+
+class AudioSystem {
+  constructor() {
+    this.ctx = null;
+    this.enabled = CONFIG.AUDIO_ENABLED;
+  }
+  ensure() {
+    if (!this.enabled || this.ctx) return;
+    try {
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (_) {}
+  }
+  tone(freq = 220, dur = 0.12, type = "sine", vol = 0.03) {
+    if (!this.enabled) return;
+    this.ensure();
+    if (!this.ctx) return;
+    const o = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    o.type = type;
+    o.frequency.value = freq;
+    g.gain.value = vol;
+    g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
+    o.connect(g); g.connect(this.ctx.destination);
+    o.start();
+    o.stop(this.ctx.currentTime + dur);
+  }
+  impact() {
+    this.tone(180 + Math.random() * 80, 0.18, "triangle", 0.025);
+    this.tone(420 + Math.random() * 60, 0.08, "sine", 0.015);
+  }
+}
+
+class NovaCore {
+  constructor() {
+    this.cm = new CanvasManager();
+    this.perf = new PerformanceManager();
+    this.core = new CoreSystem();
+    this.orbits = this.createOrbits();
+    this.engine = new ParticleEngine(this.core, this.orbits);
+    this.interaction = new InteractionSystem();
+    this.renderer = new Renderer(this.cm, this.core, this.orbits, this.engine, this.interaction, this.perf);
+    this.audio = new AudioSystem();
+    this.state = SYSTEM_STATE.BOOT;
+    this.stateTime = 0;
+    this.lastTime = 0;
+    this.bootProgress = 0;
+    this.uiShown = false;
+
+    // initial sparse particles
+    this.engine.spawnInitial(60);
+
+    // interaction side-effects
+    window.addEventListener("pointerdown", () => {
+      this.core.inject(0.28);
+      this.engine.emitBurst(0, 0, 8 + Math.floor(Math.random() * 6), 2.2);
+      this.audio.impact();
+      if (this.state === SYSTEM_STATE.IDLE || this.state === SYSTEM_STATE.RECOVERY) {
+        this.state = SYSTEM_STATE.IMPACT;
+        this.stateTime = 0;
+      }
+    });
+
+    requestAnimationFrame((t) => this.loop(t));
+  }
+
+  createOrbits() {
+    return [
+      new Orbit(95, 0.35, 0.55, 1.1),
+      new Orbit(125, -0.22, 0.72, 0.9),
+      new Orbit(155, 0.18, 0.42, 0.7),
+      new Orbit(185, -0.12, 0.85, 0.6),
+      new Orbit(215, 0.09, 0.38, 0.5)
+    ];
+  }
+
+  setState(s) {
+    this.state = s;
+    this.stateTime = 0;
+  }
+
+  update(dt, time) {
+    this.stateTime += dt;
+    this.perf.update(time);
+
+    // state machine
+    if (this.state === SYSTEM_STATE.BOOT) {
+      this.bootProgress = clamp(this.stateTime / 900, 0, 1);
+      if (this.stateTime > 900) {
+        this.setState(SYSTEM_STATE.FORMING);
+        // spawn more particles gradually
+        this.engine.spawnInitial(120);
+      }
+    } else if (this.state === SYSTEM_STATE.FORMING) {
+      if (this.stateTime > 1600) {
+        this.setState(SYSTEM_STATE.IDLE);
+        if (!this.uiShown) {
+          document.getElementById("ui").classList.add("visible");
+          this.uiShown = true;
+        }
+      }
+      // keep adding particles
+      if (this.engine.particles.length < this.perf.particleBudget * 0.85 && Math.random() < 0.15) {
+        this.engine.spawnInitial(4);
+      }
+    } else if (this.state === SYSTEM_STATE.IMPACT) {
+      if (this.stateTime > 400) this.setState(SYSTEM_STATE.RECOVERY);
+    } else if (this.state === SYSTEM_STATE.RECOVERY) {
+      if (this.stateTime > 900) this.setState(SYSTEM_STATE.IDLE);
+    }
+
+    // systems
+    this.core.update(dt, time, this.state);
+    for (const o of this.orbits) o.update(dt);
+    this.interaction.update(dt);
+    this.engine.update(dt, time, this.interaction.pointer, this.interaction.shockwaves, this.perf, this.state);
+
+    // idle micro activity
+    if (this.state === SYSTEM_STATE.IDLE && Math.random() < 0.004) {
+      this.core.inject(0.04);
+    }
+  }
+
+  loop(time) {
+    const delta = Math.min(time - this.lastTime, 32);
+    this.lastTime = time;
+    this.update(delta, time);
+    this.renderer.render(time);
+    requestAnimationFrame((t) => this.loop(t));
+  }
+}
+
+// launch
+window.addEventListener("load", () => {
+  new NovaCore();
+});
+})();
+</script>
+</body>
+</html>
